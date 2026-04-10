@@ -1084,7 +1084,7 @@ _stdio_pids: set = set()
 def _snapshot_child_pids() -> set:
     """Return a set of current child process PIDs.
 
-    Uses /proc on Linux, falls back to psutil, then empty set.
+    Uses /proc on Linux, falls back to empty set.
     Used by _run_stdio to identify the subprocess spawned by stdio_client.
     """
     my_pid = os.getpid()
@@ -1095,13 +1095,6 @@ def _snapshot_child_pids() -> set:
         with open(children_path) as f:
             return {int(p) for p in f.read().split() if p.strip()}
     except (FileNotFoundError, OSError, ValueError):
-        pass
-
-    # Fallback: psutil
-    try:
-        import psutil
-        return {c.pid for c in psutil.Process(my_pid).children()}
-    except Exception:
         pass
 
     return set()

@@ -75,7 +75,6 @@ CONFIGURABLE_TOOLSETS = [
     ("vision",          "👁️  Vision / Image Analysis",  "vision_analyze"),
     ("image_gen",       "🎨 Image Generation",          "image_generate"),
     ("moa",             "🧠 Mixture of Agents",         "mixture_of_agents"),
-    ("tts",             "🔊 Text-to-Speech",            "text_to_speech"),
     ("skills",          "📚 Skills",                    "list, view, manage"),
     ("todo",            "📋 Task Planning",             "todo"),
     ("memory",          "💾 Memory",                    "persistent memory across sessions"),
@@ -144,43 +143,6 @@ PLATFORMS = {
 # Toolsets not in this map either need no config or use the simple fallback.
 
 TOOL_CATEGORIES = {
-    "tts": {
-        "name": "Text-to-Speech",
-        "icon": "🔊",
-        "providers": [
-            {
-                "name": "Nous Subscription",
-                "tag": "Managed OpenAI TTS billed to your subscription",
-                "env_vars": [],
-                "tts_provider": "openai",
-                "requires_nous_auth": True,
-                "managed_nous_feature": "tts",
-                "override_env_vars": ["VOICE_TOOLS_OPENAI_KEY", "OPENAI_API_KEY"],
-            },
-            {
-                "name": "Microsoft Edge TTS",
-                "tag": "Free - no API key needed",
-                "env_vars": [],
-                "tts_provider": "edge",
-            },
-            {
-                "name": "OpenAI TTS",
-                "tag": "Premium - high quality voices",
-                "env_vars": [
-                    {"key": "VOICE_TOOLS_OPENAI_KEY", "prompt": "OpenAI API key", "url": "https://platform.openai.com/api-keys"},
-                ],
-                "tts_provider": "openai",
-            },
-            {
-                "name": "ElevenLabs",
-                "tag": "Premium - most natural voices",
-                "env_vars": [
-                    {"key": "ELEVENLABS_API_KEY", "prompt": "ElevenLabs API key", "url": "https://elevenlabs.io/app/settings/api-keys"},
-                ],
-                "tts_provider": "elevenlabs",
-            },
-        ],
-    },
     "web": {
         "name": "Web Search & Extract",
         "setup_title": "Select Search Provider",
@@ -636,7 +598,7 @@ def _toolset_has_keys(ts_key: str, config: dict = None) -> bool:
         except Exception:
             return False
 
-    if ts_key in {"web", "image_gen", "tts", "browser"}:
+    if ts_key in {"web", "image_gen", "browser"}:
         features = get_nous_subscription_features(config)
         feature = features.features.get(ts_key)
         if feature and (feature.available or feature.managed_by_nous):
@@ -874,9 +836,6 @@ def _toolset_needs_configuration_prompt(ts_key: str, config: dict) -> bool:
     if not cat:
         return not _toolset_has_keys(ts_key, config)
 
-    if ts_key == "tts":
-        tts_cfg = config.get("tts", {})
-        return not isinstance(tts_cfg, dict) or "provider" not in tts_cfg
     if ts_key == "web":
         web_cfg = config.get("web", {})
         return not isinstance(web_cfg, dict) or "backend" not in web_cfg
@@ -966,11 +925,6 @@ def _is_provider_active(provider: dict, config: dict) -> bool:
             return False
         if managed_feature == "image_gen":
             return feature.managed_by_nous
-        if provider.get("tts_provider"):
-            return (
-                feature.managed_by_nous
-                and config.get("tts", {}).get("provider") == provider["tts_provider"]
-            )
         if "browser_provider" in provider:
             current = config.get("browser", {}).get("cloud_provider")
             return feature.managed_by_nous and provider["browser_provider"] == current
@@ -979,8 +933,6 @@ def _is_provider_active(provider: dict, config: dict) -> bool:
             return feature.managed_by_nous and current == provider["web_backend"]
         return feature.managed_by_nous
 
-    if provider.get("tts_provider"):
-        return config.get("tts", {}).get("provider") == provider["tts_provider"]
     if "browser_provider" in provider:
         current = config.get("browser", {}).get("cloud_provider")
         return provider["browser_provider"] == current
@@ -1012,10 +964,6 @@ def _configure_provider(provider: dict, config: dict):
         if not features.nous_auth_present:
             _print_warning("  Nous Subscription is only available after logging into Nous Portal.")
             return
-
-    # Set TTS provider in config if applicable
-    if provider.get("tts_provider"):
-        config.setdefault("tts", {})["provider"] = provider["tts_provider"]
 
     # Set browser cloud provider in config if applicable
     if "browser_provider" in provider:
@@ -1222,10 +1170,6 @@ def _reconfigure_provider(provider: dict, config: dict):
         if not features.nous_auth_present:
             _print_warning("  Nous Subscription is only available after logging into Nous Portal.")
             return
-
-    if provider.get("tts_provider"):
-        config.setdefault("tts", {})["provider"] = provider["tts_provider"]
-        _print_success(f"  TTS provider set to: {provider['tts_provider']}")
 
     if "browser_provider" in provider:
         bp = provider["browser_provider"]

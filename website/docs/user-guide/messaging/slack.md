@@ -54,7 +54,7 @@ Navigate to **Features → OAuth & Permissions** in the sidebar. Scroll to **Sco
 | `im:read` | View basic DM info |
 | `im:write` | Open and manage DMs |
 | `users:read` | Look up user information |
-| `files:write` | Upload files (images, audio, documents) |
+| `files:write` | Upload files (images, documents) |
 
 :::caution Missing scopes = missing features
 Without `channels:history` and `groups:history`, the bot **will not receive messages in channels** —
@@ -303,22 +303,12 @@ unauthorized_dm_behavior: "pair"
 
 The platform-specific setting under `slack:` takes precedence over the global setting.
 
-### Voice Transcription
-
-```yaml
-# Global setting — enable/disable automatic transcription of incoming voice messages
-stt_enabled: true
-```
-
-When `true` (the default), incoming audio messages are automatically transcribed using the configured STT provider before being processed by the agent.
-
 ### Full Example
 
 ```yaml
 # Global gateway settings
 group_sessions_per_user: true
 unauthorized_dm_behavior: "pair"
-stt_enabled: true
 
 # Slack-specific settings
 slack:
@@ -338,86 +328,6 @@ platforms:
 
 
 ## Home Channel
-
-Set `SLACK_HOME_CHANNEL` to a channel ID where Hermes will deliver scheduled messages,
-cron job results, and other proactive notifications. To find a channel ID:
-
-1. Right-click the channel name in Slack
-2. Click **View channel details**
-3. Scroll to the bottom — the Channel ID is shown there
-
-```bash
-SLACK_HOME_CHANNEL=C01234567890
-```
-
-Make sure the bot has been **invited to the channel** (`/invite @Hermes Agent`).
-
----
-
-## Multi-Workspace Support
-
-Hermes can connect to **multiple Slack workspaces** simultaneously using a single gateway instance. Each workspace is authenticated independently with its own bot user ID.
-
-### Configuration
-
-Provide multiple bot tokens as a **comma-separated list** in `SLACK_BOT_TOKEN`:
-
-```bash
-# Multiple bot tokens — one per workspace
-SLACK_BOT_TOKEN=xoxb-workspace1-token,xoxb-workspace2-token,xoxb-workspace3-token
-
-# A single app-level token is still used for Socket Mode
-SLACK_APP_TOKEN=xapp-your-app-token
-```
-
-Or in `~/.hermes/config.yaml`:
-
-```yaml
-platforms:
-  slack:
-    token: "xoxb-workspace1-token,xoxb-workspace2-token"
-```
-
-### OAuth Token File
-
-In addition to tokens in the environment or config, Hermes also loads tokens from an **OAuth token file** at:
-
-```
-~/.hermes/slack_tokens.json
-```
-
-This file is a JSON object mapping team IDs to token entries:
-
-```json
-{
-  "T01ABC2DEF3": {
-    "token": "xoxb-workspace-token-here",
-    "team_name": "My Workspace"
-  }
-}
-```
-
-Tokens from this file are merged with any tokens specified via `SLACK_BOT_TOKEN`. Duplicate tokens are automatically deduplicated.
-
-### How it works
-
-- The **first token** in the list is the primary token, used for the Socket Mode connection (AsyncApp).
-- Each token is authenticated via `auth.test` on startup. The gateway maps each `team_id` to its own `WebClient` and `bot_user_id`.
-- When a message arrives, Hermes uses the correct workspace-specific client to respond.
-- The primary `bot_user_id` (from the first token) is used for backward compatibility with features that expect a single bot identity.
-
----
-
-## Voice Messages
-
-Hermes supports voice on Slack:
-
-- **Incoming:** Voice/audio messages are automatically transcribed using the configured STT provider: local `faster-whisper`, Groq Whisper (`GROQ_API_KEY`), or OpenAI Whisper (`VOICE_TOOLS_OPENAI_KEY`)
-- **Outgoing:** TTS responses are sent as audio file attachments
-
----
-
-## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|

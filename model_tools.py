@@ -147,7 +147,6 @@ def _discover_tools():
         "tools.browser_tool",
         "tools.cronjob_tools",
         "tools.rl_training_tool",
-        "tools.tts_tool",
         "tools.todo_tool",
         "tools.memory_tool",
         "tools.session_search_tool",
@@ -223,7 +222,6 @@ _LEGACY_TOOLSET_MAP = {
         "rl_list_runs", "rl_test_inference"
     ],
     "file_tools": ["read_file", "write_file", "patch", "search_files"],
-    "tts_tools": ["text_to_speech"],
 }
 
 

@@ -253,7 +253,6 @@ Type these during an interactive chat session.
 /personality [name]  Set personality
 /reasoning [level]   Set reasoning (none|low|medium|high|xhigh|show|hide)
 /verbose             Cycle: off → new → all → verbose
-/voice [on|off|tts]  Voice mode
 /yolo                Toggle approval bypass
 /skin [name]         Change theme (CLI)
 /statusbar           Toggle status bar (CLI)
@@ -312,8 +311,6 @@ Edit with `hermes config edit` or `hermes config set section.key value`.
 | `terminal` | `backend` (local/docker/ssh/modal), `cwd`, `timeout` (180) |
 | `compression` | `enabled`, `threshold` (0.50), `target_ratio` (0.20) |
 | `display` | `skin`, `tool_progress`, `show_reasoning`, `show_cost` |
-| `stt` | `enabled`, `provider` (local/groq/openai) |
-| `tts` | `provider` (edge/elevenlabs/openai/kokoro/fish) |
 | `memory` | `memory_enabled`, `user_profile_enabled`, `provider` |
 | `security` | `tirith_enabled`, `website_blocklist` |
 | `delegation` | `model`, `provider`, `max_iterations` (50) |
@@ -359,7 +356,6 @@ Enable/disable via `hermes tools` (interactive) or `hermes tools enable/disable 
 | `code_execution` | Sandboxed Python execution |
 | `vision` | Image analysis |
 | `image_gen` | AI image generation |
-| `tts` | Text-to-speech |
 | `skills` | Skill browsing and management |
 | `memory` | Persistent cross-session memory |
 | `session_search` | Search past conversations |
@@ -370,40 +366,6 @@ Enable/disable via `hermes tools` (interactive) or `hermes tools enable/disable 
 | `homeassistant` | Smart home control (off by default) |
 
 Tool changes take effect on `/reset` (new session). They do NOT apply mid-conversation to preserve prompt caching.
-
----
-
-## Voice & Transcription
-
-### STT (Voice → Text)
-
-Voice messages from messaging platforms are auto-transcribed.
-
-Provider priority (auto-detected):
-1. **Local faster-whisper** — free, no API key: `pip install faster-whisper`
-2. **Groq Whisper** — free tier: set `GROQ_API_KEY`
-3. **OpenAI Whisper** — paid: set `VOICE_TOOLS_OPENAI_KEY`
-
-Config:
-```yaml
-stt:
-  enabled: true
-  provider: local        # local, groq, openai
-  local:
-    model: base          # tiny, base, small, medium, large-v3
-```
-
-### TTS (Text → Voice)
-
-| Provider | Env var | Free? |
-|----------|---------|-------|
-| Edge TTS | None | Yes (default) |
-| ElevenLabs | `ELEVENLABS_API_KEY` | Free tier |
-| OpenAI | `VOICE_TOOLS_OPENAI_KEY` | Paid |
-| Kokoro (local) | None | Free |
-| Fish Audio | `FISH_AUDIO_API_KEY` | Free tier |
-
-Voice commands: `/voice on` (voice-to-voice), `/voice tts` (always voice), `/voice off`.
 
 ---
 
@@ -489,11 +451,6 @@ terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_14305
 ---
 
 ## Troubleshooting
-
-### Voice not working
-1. Check `stt.enabled: true` in config.yaml
-2. Verify provider: `pip install faster-whisper` or set API key
-3. Restart gateway: `/restart`
 
 ### Tool not available
 1. `hermes tools` — check if toolset is enabled for your platform

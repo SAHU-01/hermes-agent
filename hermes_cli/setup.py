@@ -682,31 +682,6 @@ def _print_setup_summary(config: dict, hermes_home):
     else:
         tool_status.append(("Image Generation", False, "FAL_KEY"))
 
-    # TTS — show configured provider
-    tts_provider = config.get("tts", {}).get("provider", "edge")
-    if subscription_features.tts.managed_by_nous:
-        tool_status.append(("Text-to-Speech (OpenAI via Nous subscription)", True, None))
-    elif tts_provider == "elevenlabs" and get_env_value("ELEVENLABS_API_KEY"):
-        tool_status.append(("Text-to-Speech (ElevenLabs)", True, None))
-    elif tts_provider == "openai" and (
-        get_env_value("VOICE_TOOLS_OPENAI_KEY") or get_env_value("OPENAI_API_KEY")
-    ):
-        tool_status.append(("Text-to-Speech (OpenAI)", True, None))
-    elif tts_provider == "minimax" and get_env_value("MINIMAX_API_KEY"):
-        tool_status.append(("Text-to-Speech (MiniMax)", True, None))
-    elif tts_provider == "neutts":
-        try:
-            import importlib.util
-            neutts_ok = importlib.util.find_spec("neutts") is not None
-        except Exception:
-            neutts_ok = False
-        if neutts_ok:
-            tool_status.append(("Text-to-Speech (NeuTTS local)", True, None))
-        else:
-            tool_status.append(("Text-to-Speech (NeuTTS — not installed)", False, "run 'hermes setup tts'"))
-    else:
-        tool_status.append(("Text-to-Speech (Edge TTS)", True, None))
-
     if subscription_features.modal.managed_by_nous:
         tool_status.append(("Modal Execution (Nous subscription)", True, None))
     elif config.get("terminal", {}).get("backend") == "modal":
@@ -1096,203 +1071,9 @@ def setup_model_provider(config: dict, *, quick: bool = False):
 
 
     if selected_provider == "nous" and nous_subscription_selected:
-        changed_defaults = apply_nous_provider_defaults(config)
-        current_tts = str(config.get("tts", {}).get("provider") or "edge")
-        if "tts" in changed_defaults:
-            print_success("TTS provider set to: OpenAI TTS via your Nous subscription")
-        else:
-            print_info(f"Keeping your existing TTS provider: {current_tts}")
+        apply_nous_provider_defaults(config)
 
     save_config(config)
-
-    if not quick and selected_provider != "nous":
-        _setup_tts_provider(config)
-
-
-# =============================================================================
-# Section 1b: TTS Provider Configuration
-# =============================================================================
-
-
-def _check_espeak_ng() -> bool:
-    """Check if espeak-ng is installed."""
-    import shutil
-    return shutil.which("espeak-ng") is not None or shutil.which("espeak") is not None
-
-
-def _install_neutts_deps() -> bool:
-    """Install NeuTTS dependencies with user approval. Returns True on success."""
-    import subprocess
-    import sys
-
-    # Check espeak-ng
-    if not _check_espeak_ng():
-        print()
-        print_warning("NeuTTS requires espeak-ng for phonemization.")
-        if sys.platform == "darwin":
-            print_info("Install with: brew install espeak-ng")
-        elif sys.platform == "win32":
-            print_info("Install with: choco install espeak-ng")
-        else:
-            print_info("Install with: sudo apt install espeak-ng")
-        print()
-        if prompt_yes_no("Install espeak-ng now?", True):
-            try:
-                if sys.platform == "darwin":
-                    subprocess.run(["brew", "install", "espeak-ng"], check=True)
-                elif sys.platform == "win32":
-                    subprocess.run(["choco", "install", "espeak-ng", "-y"], check=True)
-                else:
-                    subprocess.run(["sudo", "apt", "install", "-y", "espeak-ng"], check=True)
-                print_success("espeak-ng installed")
-            except (subprocess.CalledProcessError, FileNotFoundError) as e:
-                print_warning(f"Could not install espeak-ng automatically: {e}")
-                print_info("Please install it manually and re-run setup.")
-                return False
-        else:
-            print_warning("espeak-ng is required for NeuTTS. Install it manually before using NeuTTS.")
-
-    # Install neutts Python package
-    print()
-    print_info("Installing neutts Python package...")
-    print_info("This will also download the TTS model (~300MB) on first use.")
-    print()
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-U", "neutts[all]", "--quiet"],
-            check=True, timeout=300,
-        )
-        print_success("neutts installed successfully")
-        return True
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-        print_error(f"Failed to install neutts: {e}")
-        print_info("Try manually: python -m pip install -U neutts[all]")
-        return False
-
-
-def _setup_tts_provider(config: dict):
-    """Interactive TTS provider selection with install flow for NeuTTS."""
-    tts_config = config.get("tts", {})
-    current_provider = tts_config.get("provider", "edge")
-    subscription_features = get_nous_subscription_features(config)
-
-    provider_labels = {
-        "edge": "Edge TTS",
-        "elevenlabs": "ElevenLabs",
-        "openai": "OpenAI TTS",
-        "minimax": "MiniMax TTS",
-        "neutts": "NeuTTS",
-    }
-    current_label = provider_labels.get(current_provider, current_provider)
-
-    print()
-    print_header("Text-to-Speech Provider (optional)")
-    print_info(f"Current: {current_label}")
-    print()
-
-    choices = []
-    providers = []
-    if managed_nous_tools_enabled() and subscription_features.nous_auth_present:
-        choices.append("Nous Subscription (managed OpenAI TTS, billed to your subscription)")
-        providers.append("nous-openai")
-    choices.extend(
-        [
-            "Edge TTS (free, cloud-based, no setup needed)",
-            "ElevenLabs (premium quality, needs API key)",
-            "OpenAI TTS (good quality, needs API key)",
-            "MiniMax TTS (high quality with voice cloning, needs API key)",
-            "NeuTTS (local on-device, free, ~300MB model download)",
-        ]
-    )
-    providers.extend(["edge", "elevenlabs", "openai", "minimax", "neutts"])
-    choices.append(f"Keep current ({current_label})")
-    keep_current_idx = len(choices) - 1
-    idx = prompt_choice("Select TTS provider:", choices, keep_current_idx)
-
-    if idx == keep_current_idx:
-        return
-
-    selected = providers[idx]
-    selected_via_nous = selected == "nous-openai"
-    if selected == "nous-openai":
-        selected = "openai"
-        print_info("OpenAI TTS will use the managed Nous gateway and bill to your subscription.")
-        if get_env_value("VOICE_TOOLS_OPENAI_KEY") or get_env_value("OPENAI_API_KEY"):
-            print_warning(
-                "Direct OpenAI credentials are still configured and may take precedence until removed from ~/.hermes/.env."
-            )
-
-    if selected == "neutts":
-        # Check if already installed
-        try:
-            import importlib.util
-            already_installed = importlib.util.find_spec("neutts") is not None
-        except Exception:
-            already_installed = False
-
-        if already_installed:
-            print_success("NeuTTS is already installed")
-        else:
-            print()
-            print_info("NeuTTS requires:")
-            print_info("  • Python package: neutts (~50MB install + ~300MB model on first use)")
-            print_info("  • System package: espeak-ng (phonemizer)")
-            print()
-            if prompt_yes_no("Install NeuTTS dependencies now?", True):
-                if not _install_neutts_deps():
-                    print_warning("NeuTTS installation incomplete. Falling back to Edge TTS.")
-                    selected = "edge"
-            else:
-                print_info("Skipping install. Set tts.provider to 'neutts' after installing manually.")
-                selected = "edge"
-
-    elif selected == "elevenlabs":
-        existing = get_env_value("ELEVENLABS_API_KEY")
-        if not existing:
-            print()
-            api_key = prompt("ElevenLabs API key", password=True)
-            if api_key:
-                save_env_value("ELEVENLABS_API_KEY", api_key)
-                print_success("ElevenLabs API key saved")
-            else:
-                print_warning("No API key provided. Falling back to Edge TTS.")
-                selected = "edge"
-
-    elif selected == "openai" and not selected_via_nous:
-        existing = get_env_value("VOICE_TOOLS_OPENAI_KEY") or get_env_value("OPENAI_API_KEY")
-        if not existing:
-            print()
-            api_key = prompt("OpenAI API key for TTS", password=True)
-            if api_key:
-                save_env_value("VOICE_TOOLS_OPENAI_KEY", api_key)
-                print_success("OpenAI TTS API key saved")
-            else:
-                print_warning("No API key provided. Falling back to Edge TTS.")
-                selected = "edge"
-
-    elif selected == "minimax":
-        existing = get_env_value("MINIMAX_API_KEY")
-        if not existing:
-            print()
-            api_key = prompt("MiniMax API key for TTS", password=True)
-            if api_key:
-                save_env_value("MINIMAX_API_KEY", api_key)
-                print_success("MiniMax TTS API key saved")
-            else:
-                print_warning("No API key provided. Falling back to Edge TTS.")
-                selected = "edge"
-
-    # Save the selection
-    if "tts" not in config:
-        config["tts"] = {}
-    config["tts"]["provider"] = selected
-    save_config(config)
-    print_success(f"TTS provider set to: {provider_labels.get(selected, selected)}")
-
-
-def setup_tts(config: dict):
-    """Standalone TTS setup (for 'hermes setup tts')."""
-    _setup_tts_provider(config)
 
 
 # =============================================================================
@@ -2459,8 +2240,6 @@ def _get_section_config_summary(config: dict, section_key: str) -> Optional[str]
 
     elif section_key == "tools":
         tools = []
-        if get_env_value("ELEVENLABS_API_KEY"):
-            tools.append("TTS/ElevenLabs")
         if get_env_value("BROWSERBASE_API_KEY"):
             tools.append("Browser")
         if get_env_value("FIRECRAWL_API_KEY"):
@@ -2600,7 +2379,6 @@ def _offer_openclaw_migration(hermes_home: Path) -> bool:
 
 SETUP_SECTIONS = [
     ("model", "Model & Provider", setup_model_provider),
-    ("tts", "Text-to-Speech", setup_tts),
     ("terminal", "Terminal Backend", setup_terminal_backend),
     ("gateway", "Messaging Platforms (Gateway)", setup_gateway),
     ("tools", "Tools", setup_tools),

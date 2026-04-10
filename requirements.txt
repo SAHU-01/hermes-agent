@@ -24,9 +24,6 @@ parallel-web>=0.4.2
 # Image generation
 fal-client
 
-# Text-to-speech (Edge TTS is free, no API key needed)
-edge-tts
-
 # Optional: For cron expression parsing (cronjob scheduling)
 croniter
 

@@ -19,24 +19,23 @@ Delegate coding tasks to [Codex](https://github.com/openai/codex) via the Hermes
 - Codex installed: `npm install -g @openai/codex`
 - OpenAI API key configured
 - **Must run inside a git repository** — Codex refuses to run outside one
-- Use `pty=true` in terminal calls — Codex is an interactive terminal app
 
 ## One-Shot Tasks
 
 ```
-terminal(command="codex exec 'Add dark mode toggle to settings'", workdir="~/project", pty=true)
+terminal(command="codex exec 'Add dark mode toggle to settings'", workdir="~/project")
 ```
 
 For scratch work (Codex needs a git repo):
 ```
-terminal(command="cd $(mktemp -d) && git init && codex exec 'Build a snake game in Python'", pty=true)
+terminal(command="cd $(mktemp -d) && git init && codex exec 'Build a snake game in Python'")
 ```
 
 ## Background Mode (Long Tasks)
 
 ```
-# Start in background with PTY
-terminal(command="codex exec --full-auto 'Refactor the auth module'", workdir="~/project", background=true, pty=true)
+# Start in background
+terminal(command="codex exec --full-auto 'Refactor the auth module'", workdir="~/project", background=true)
 # Returns session_id
 
 # Monitor progress
@@ -63,7 +62,7 @@ process(action="kill", session_id="<id>")
 Clone to a temp directory for safe review:
 
 ```
-terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.git $REVIEW && cd $REVIEW && gh pr checkout 42 && codex review --base origin/main", pty=true)
+terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.git $REVIEW && cd $REVIEW && gh pr checkout 42 && codex review --base origin/main")
 ```
 
 ## Parallel Issue Fixing with Worktrees
@@ -74,8 +73,8 @@ terminal(command="git worktree add -b fix/issue-78 /tmp/issue-78 main", workdir=
 terminal(command="git worktree add -b fix/issue-99 /tmp/issue-99 main", workdir="~/project")
 
 # Launch Codex in each
-terminal(command="codex --yolo exec 'Fix issue #78: <description>. Commit when done.'", workdir="/tmp/issue-78", background=true, pty=true)
-terminal(command="codex --yolo exec 'Fix issue #99: <description>. Commit when done.'", workdir="/tmp/issue-99", background=true, pty=true)
+terminal(command="codex --yolo exec 'Fix issue #78: <description>. Commit when done.'", workdir="/tmp/issue-78", background=true)
+terminal(command="codex --yolo exec 'Fix issue #99: <description>. Commit when done.'", workdir="/tmp/issue-99", background=true)
 
 # Monitor
 process(action="list")
@@ -95,8 +94,8 @@ terminal(command="git worktree remove /tmp/issue-78", workdir="~/project")
 terminal(command="git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*'", workdir="~/project")
 
 # Review multiple PRs in parallel
-terminal(command="codex exec 'Review PR #86. git diff origin/main...origin/pr/86'", workdir="~/project", background=true, pty=true)
-terminal(command="codex exec 'Review PR #87. git diff origin/main...origin/pr/87'", workdir="~/project", background=true, pty=true)
+terminal(command="codex exec 'Review PR #86. git diff origin/main...origin/pr/86'", workdir="~/project", background=true)
+terminal(command="codex exec 'Review PR #87. git diff origin/main...origin/pr/87'", workdir="~/project", background=true)
 
 # Post results
 terminal(command="gh pr comment 86 --body '<review>'", workdir="~/project")
@@ -104,8 +103,7 @@ terminal(command="gh pr comment 86 --body '<review>'", workdir="~/project")
 
 ## Rules
 
-1. **Always use `pty=true`** — Codex is an interactive terminal app and hangs without a PTY
-2. **Git repo required** — Codex won't run outside a git directory. Use `mktemp -d && git init` for scratch
+1. **Git repo required** — Codex won't run outside a git directory. Use `mktemp -d && git init` for scratch
 3. **Use `exec` for one-shots** — `codex exec "prompt"` runs and exits cleanly
 4. **`--full-auto` for building** — auto-approves changes within the sandbox
 5. **Background for long tasks** — use `background=true` and monitor with `process` tool

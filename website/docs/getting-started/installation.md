@@ -122,9 +122,6 @@ uv pip install -e "."
 | `cron` | Cron expression parsing for scheduled tasks | `uv pip install -e ".[cron]"` |
 | `cli` | Terminal menu UI for setup wizard | `uv pip install -e ".[cli]"` |
 | `modal` | Modal cloud execution backend | `uv pip install -e ".[modal]"` |
-| `tts-premium` | ElevenLabs premium voices | `uv pip install -e ".[tts-premium]"` |
-| `voice` | CLI microphone input + audio playback | `uv pip install -e ".[voice]"` |
-| `pty` | PTY terminal support | `uv pip install -e ".[pty]"` |
 | `honcho` | AI-native memory (Honcho integration) | `uv pip install -e ".[honcho]"` |
 | `mcp` | Model Context Protocol support | `uv pip install -e ".[mcp]"` |
 | `homeassistant` | Home Assistant integration | `uv pip install -e ".[homeassistant]"` |
@@ -157,7 +154,7 @@ npm install
 
 ```bash
 # Create the directory structure
-mkdir -p ~/.hermes/{cron,sessions,logs,memories,skills,pairing,hooks,image_cache,audio_cache,whatsapp/session}
+mkdir -p ~/.hermes/{cron,sessions,logs,memories,skills,pairing,hooks,image_cache,whatsapp/session}
 
 # Copy the example config file
 cp cli-config.yaml.example ~/.hermes/config.yaml
@@ -243,7 +240,7 @@ uv pip install -e "./tinker-atropos"
 npm install  # optional, for browser tools and WhatsApp
 
 # Configure
-mkdir -p ~/.hermes/{cron,sessions,logs,memories,skills,pairing,hooks,image_cache,audio_cache,whatsapp/session}
+mkdir -p ~/.hermes/{cron,sessions,logs,memories,skills,pairing,hooks,image_cache,whatsapp/session}
 cp cli-config.yaml.example ~/.hermes/config.yaml
 touch ~/.hermes/.env
 echo 'OPENROUTER_API_KEY=sk-or-v1-your-key' >> ~/.hermes/.env

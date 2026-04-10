@@ -27,17 +27,16 @@ The CLI is [open-source](https://github.com/blackboxaicode/cli) (GPL-3.0, TypeSc
   ```
 - API key from [app.blackbox.ai/dashboard](https://app.blackbox.ai/dashboard)
 - Configured: run `blackbox configure` and enter your API key
-- Use `pty=true` in terminal calls — Blackbox CLI is an interactive terminal app
 
 ## One-Shot Tasks
 
 ```
-terminal(command="blackbox --prompt 'Add JWT authentication with refresh tokens to the Express API'", workdir="/path/to/project", pty=true)
+terminal(command="blackbox --prompt 'Add JWT authentication with refresh tokens to the Express API'", workdir="/path/to/project")
 ```
 
 For quick scratch work:
 ```
-terminal(command="cd $(mktemp -d) && git init && blackbox --prompt 'Build a REST API for todos with SQLite'", pty=true)
+terminal(command="cd $(mktemp -d) && git init && blackbox --prompt 'Build a REST API for todos with SQLite'")
 ```
 
 ## Background Mode (Long Tasks)
@@ -45,8 +44,8 @@ terminal(command="cd $(mktemp -d) && git init && blackbox --prompt 'Build a REST
 For tasks that take minutes, use background mode so you can monitor progress:
 
 ```
-# Start in background with PTY
-terminal(command="blackbox --prompt 'Refactor the auth module to use OAuth 2.0'", workdir="~/project", background=true, pty=true)
+# Start in background
+terminal(command="blackbox --prompt 'Refactor the auth module to use OAuth 2.0'", workdir="~/project", background=true)
 # Returns session_id
 
 # Monitor progress
@@ -67,7 +66,7 @@ Blackbox CLI has built-in checkpoint support for pausing and resuming tasks:
 ```
 # After a task completes, Blackbox shows a checkpoint tag
 # Resume with a follow-up task:
-terminal(command="blackbox --resume-checkpoint 'task-abc123-2026-03-06' --prompt 'Now add rate limiting to the endpoints'", workdir="~/project", pty=true)
+terminal(command="blackbox --resume-checkpoint 'task-abc123-2026-03-06' --prompt 'Now add rate limiting to the endpoints'", workdir="~/project")
 ```
 
 ## Session Commands
@@ -86,7 +85,7 @@ During an interactive session, use these commands:
 Clone to a temp directory to avoid modifying the working tree:
 
 ```
-terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.git $REVIEW && cd $REVIEW && gh pr checkout 42 && blackbox --prompt 'Review this PR against main. Check for bugs, security issues, and code quality.'", pty=true)
+terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.git $REVIEW && cd $REVIEW && gh pr checkout 42 && blackbox --prompt 'Review this PR against main. Check for bugs, security issues, and code quality.'")
 ```
 
 ## Parallel Work
@@ -94,8 +93,8 @@ terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.
 Spawn multiple Blackbox instances for independent tasks:
 
 ```
-terminal(command="blackbox --prompt 'Fix the login bug'", workdir="/tmp/issue-1", background=true, pty=true)
-terminal(command="blackbox --prompt 'Add unit tests for auth'", workdir="/tmp/issue-2", background=true, pty=true)
+terminal(command="blackbox --prompt 'Fix the login bug'", workdir="/tmp/issue-1", background=true)
+terminal(command="blackbox --prompt 'Add unit tests for auth'", workdir="/tmp/issue-2", background=true)
 
 # Monitor all
 process(action="list")
@@ -134,8 +133,7 @@ Control token usage via `.blackboxcli/settings.json`:
 
 ## Rules
 
-1. **Always use `pty=true`** — Blackbox CLI is an interactive terminal app and will hang without a PTY
-2. **Use `workdir`** — keep the agent focused on the right directory
+1. **Use `workdir`** — keep the agent focused on the right directory
 3. **Background for long tasks** — use `background=true` and monitor with `process` tool
 4. **Don't interfere** — monitor with `poll`/`log`, don't kill sessions because they're slow
 5. **Report results** — after completion, check what changed and summarize for the user

@@ -23,7 +23,7 @@ High-level categories:
 | **Web** | `web_search`, `web_extract` | Search the web and extract page content. |
 | **Terminal & Files** | `terminal`, `process`, `read_file`, `patch` | Execute commands and manipulate files. |
 | **Browser** | `browser_navigate`, `browser_snapshot`, `browser_vision` | Interactive browser automation with text and vision support. |
-| **Media** | `vision_analyze`, `image_generate`, `text_to_speech` | Multimodal analysis and generation. |
+| **Media** | `vision_analyze`, `image_generate` | Multimodal analysis and generation. |
 | **Agent orchestration** | `todo`, `clarify`, `execute_code`, `delegate_task` | Planning, clarification, code execution, and subagent delegation. |
 | **Memory & recall** | `memory`, `session_search` | Persistent memory and session search. |
 | **Automation & delivery** | `cronjob`, `send_message` | Scheduled tasks with create/list/update/pause/resume/run/remove actions, plus outbound messaging delivery. |
@@ -44,7 +44,7 @@ hermes tools
 hermes tools
 ```
 
-Common toolsets include `web`, `terminal`, `file`, `browser`, `vision`, `image_gen`, `moa`, `skills`, `tts`, `todo`, `memory`, `session_search`, `cronjob`, `code_execution`, `delegation`, `clarify`, `homeassistant`, and `rl`.
+Common toolsets include `web`, `terminal`, `file`, `browser`, `vision`, `image_gen`, `moa`, `skills`, `todo`, `memory`, `session_search`, `cronjob`, `code_execution`, `delegation`, `clarify`, `homeassistant`, and `rl`.
 
 See [Toolsets Reference](/docs/reference/toolsets-reference) for the full set, including platform presets such as `hermes-cli`, `hermes-telegram`, and dynamic MCP toolsets like `mcp-<server>`.
 
@@ -55,7 +55,6 @@ The terminal tool can execute commands in different environments:
 | Backend | Description | Use Case |
 |---------|-------------|----------|
 | `local` | Run on your machine (default) | Development, trusted tasks |
-| `docker` | Isolated containers | Security, reproducibility |
 | `ssh` | Remote server | Sandboxing, keep agent away from its own code |
 | `singularity` | HPC containers | Cluster computing, rootless |
 | `modal` | Cloud execution | Serverless, scale |
@@ -66,17 +65,9 @@ The terminal tool can execute commands in different environments:
 ```yaml
 # In ~/.hermes/config.yaml
 terminal:
-  backend: local    # or: docker, ssh, singularity, modal, daytona
+  backend: local    # or: ssh, singularity, modal, daytona
   cwd: "."          # Working directory
   timeout: 180      # Command timeout in seconds
-```
-
-### Docker Backend
-
-```yaml
-terminal:
-  backend: docker
-  docker_image: python:3.11-slim
 ```
 
 ### SSH Backend
@@ -119,7 +110,7 @@ Configure CPU, memory, disk, and persistence for all container backends:
 
 ```yaml
 terminal:
-  backend: docker  # or singularity, modal, daytona
+  backend: singularity  # or modal, daytona
   container_cpu: 1              # CPU cores (default: 1)
   container_memory: 5120        # Memory in MB (default: 5GB)
   container_disk: 51200         # Disk in MB (default: 50GB)
@@ -132,14 +123,11 @@ When `container_persistent: true`, installed packages, files, and config survive
 
 All container backends run with security hardening:
 
-- Read-only root filesystem (Docker)
 - All Linux capabilities dropped
 - No privilege escalation
 - PID limits (256 processes)
 - Full namespace isolation
 - Persistent workspace via volumes, not writable root layer
-
-Docker can optionally receive an explicit env allowlist via `terminal.docker_forward_env`, but forwarded variables are visible to commands inside the container and should be treated as exposed to that session.
 
 ## Background Process Management
 
@@ -157,8 +145,6 @@ process(action="log", session_id="proc_abc123")    # Full output
 process(action="kill", session_id="proc_abc123")   # Terminate
 process(action="write", session_id="proc_abc123", data="y")  # Send input
 ```
-
-PTY mode (`pty=true`) enables interactive CLI tools like Codex and Claude Code.
 
 ## Sudo Support
 

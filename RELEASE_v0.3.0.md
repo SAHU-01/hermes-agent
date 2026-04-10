@@ -2,7 +2,7 @@
 
 **Release Date:** March 17, 2026
 
-> The streaming, plugins, and provider release — unified real-time token delivery, first-class plugin architecture, rebuilt provider system with Vercel AI Gateway, native Anthropic provider, smart approvals, live Chrome CDP browser connect, ACP IDE integration, Honcho memory, voice mode, persistent shell, and 50+ bug fixes across every platform.
+> The streaming, plugins, and provider release — unified real-time token delivery, first-class plugin architecture, rebuilt provider system with Vercel AI Gateway, native Anthropic provider, smart approvals, live Chrome CDP browser connect, ACP IDE integration, Honcho memory, persistent shell, and 50+ bug fixes across every platform.
 
 ---
 
@@ -17,8 +17,6 @@
 - **Smart Approvals + /stop Command** — Codex-inspired approval system that learns which commands are safe and remembers your preferences. `/stop` kills the current agent run immediately. ([#1543](https://github.com/NousResearch/hermes-agent/pull/1543))
 
 - **Honcho Memory Integration** — Async memory writes, configurable recall modes, session title integration, and multi-user isolation in gateway mode. By @erosika. ([#736](https://github.com/NousResearch/hermes-agent/pull/736))
-
-- **Voice Mode** — Push-to-talk in CLI, voice notes in Telegram/Discord, Discord voice channel support, and local Whisper transcription via faster-whisper. ([#1299](https://github.com/NousResearch/hermes-agent/pull/1299), [#1185](https://github.com/NousResearch/hermes-agent/pull/1185), [#1429](https://github.com/NousResearch/hermes-agent/pull/1429))
 
 - **Concurrent Tool Execution** — Multiple independent tool calls now run in parallel via ThreadPoolExecutor, significantly reducing latency for multi-tool turns. ([#1152](https://github.com/NousResearch/hermes-agent/pull/1152))
 
@@ -235,17 +233,6 @@
 
 ---
 
-## 🎙️ Voice Mode
-
-- Voice mode foundation — push-to-talk CLI, Telegram/Discord voice notes ([#1299](https://github.com/NousResearch/hermes-agent/pull/1299))
-- Free local Whisper transcription via faster-whisper ([#1185](https://github.com/NousResearch/hermes-agent/pull/1185))
-- Discord voice channel reliability fixes ([#1429](https://github.com/NousResearch/hermes-agent/pull/1429))
-- Restore local STT fallback for gateway voice notes ([#1490](https://github.com/NousResearch/hermes-agent/pull/1490))
-- Honor `stt.enabled: false` across gateway transcription ([#1394](https://github.com/NousResearch/hermes-agent/pull/1394))
-- Fix bogus incapability message on Telegram voice notes (Issue [#1033](https://github.com/NousResearch/hermes-agent/issues/1033))
-
----
-
 ## 🔌 ACP (IDE Integration)
 
 - Restore ACP server implementation ([#1254](https://github.com/NousResearch/hermes-agent/pull/1254))
@@ -326,7 +313,6 @@
 ## 📚 Documentation
 
 - Comprehensive SOUL.md guide ([#1315](https://github.com/NousResearch/hermes-agent/pull/1315))
-- Voice mode documentation ([#1316](https://github.com/NousResearch/hermes-agent/pull/1316), [#1362](https://github.com/NousResearch/hermes-agent/pull/1362))
 - Provider contribution guide ([#1361](https://github.com/NousResearch/hermes-agent/pull/1361))
 - ACP and internal systems implementation guides ([#1259](https://github.com/NousResearch/hermes-agent/pull/1259))
 - Expand Docusaurus coverage across CLI, tools, skills, and skins ([#1232](https://github.com/NousResearch/hermes-agent/pull/1232))

@@ -6,7 +6,7 @@ description: "Set up Hermes Agent as a Telegram bot"
 
 # Telegram Setup
 
-Hermes Agent integrates with Telegram as a full-featured conversational bot. Once connected, you can chat with your agent from any device, send voice memos that get auto-transcribed, receive scheduled task results, and use the agent in group chats. The integration is built on [python-telegram-bot](https://python-telegram-bot.org/) and supports text, voice, images, and file attachments.
+Hermes Agent integrates with Telegram as a full-featured conversational bot. Once connected, you can chat with your agent from any device, receive scheduled task results, and use the agent in group chats. The integration is built on [python-telegram-bot](https://python-telegram-bot.org/) and supports text, images, and file attachments.
 
 ## Step 1: Create a Bot via BotFather
 
@@ -186,35 +186,6 @@ TELEGRAM_HOME_CHANNEL_NAME="My Notes"
 :::tip
 Group chat IDs are negative numbers (e.g., `-1001234567890`). Your personal DM chat ID is the same as your user ID.
 :::
-
-## Voice Messages
-
-### Incoming Voice (Speech-to-Text)
-
-Voice messages you send on Telegram are automatically transcribed by Hermes's configured STT provider and injected as text into the conversation.
-
-- `local` uses `faster-whisper` on the machine running Hermes — no API key required
-- `groq` uses Groq Whisper and requires `GROQ_API_KEY`
-- `openai` uses OpenAI Whisper and requires `VOICE_TOOLS_OPENAI_KEY`
-
-### Outgoing Voice (Text-to-Speech)
-
-When the agent generates audio via TTS, it's delivered as native Telegram **voice bubbles** — the round, inline-playable kind.
-
-- **OpenAI and ElevenLabs** produce Opus natively — no extra setup needed
-- **Edge TTS** (the default free provider) outputs MP3 and requires **ffmpeg** to convert to Opus:
-
-```bash
-# Ubuntu/Debian
-sudo apt install ffmpeg
-
-# macOS
-brew install ffmpeg
-```
-
-Without ffmpeg, Edge TTS audio is sent as a regular audio file (still playable, but uses the rectangular player instead of a voice bubble).
-
-Configure the TTS provider in your `config.yaml` under the `tts.provider` key.
 
 ## Group Chat Usage
 
@@ -533,8 +504,6 @@ If the bot doesn't have permission to add reactions in a group, the reaction cal
 | Bot not responding at all | Verify `TELEGRAM_BOT_TOKEN` is correct. Check `hermes gateway` logs for errors. |
 | Bot responds with "unauthorized" | Your user ID is not in `TELEGRAM_ALLOWED_USERS`. Double-check with @userinfobot. |
 | Bot ignores group messages | Privacy mode is likely on. Disable it (Step 3) or make the bot a group admin. **Remember to remove and re-add the bot after changing privacy.** |
-| Voice messages not transcribed | Verify STT is available: install `faster-whisper` for local transcription, or set `GROQ_API_KEY` / `VOICE_TOOLS_OPENAI_KEY` in `~/.hermes/.env`. |
-| Voice replies are files, not bubbles | Install `ffmpeg` (needed for Edge TTS Opus conversion). |
 | Bot token revoked/invalid | Generate a new token via `/revoke` then `/newbot` or `/token` in BotFather. Update your `.env` file. |
 | Webhook not receiving updates | Verify `TELEGRAM_WEBHOOK_URL` is publicly reachable (test with `curl`). Ensure your platform/reverse proxy routes inbound HTTPS traffic from the URL's port to the local listen port configured by `TELEGRAM_WEBHOOK_PORT` (they do not need to be the same number). Ensure SSL/TLS is active — Telegram only sends to HTTPS URLs. Check firewall rules. |
 

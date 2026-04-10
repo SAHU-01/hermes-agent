@@ -2,14 +2,14 @@
 
 Remote backends (Docker, Modal, SSH) create sandboxes with no host files.
 This module ensures that credential files, skill directories, and host-side
-cache directories (documents, images, audio, screenshots) are mounted or
+cache directories (documents, images, screenshots) are mounted or
 synced into those sandboxes so the agent can access them.
 
 **Credentials and skills** — session-scoped registry fed by skill declarations
 (``required_credential_files``) and user config (``terminal.credential_files``).
 
-**Cache directories** — gateway-cached uploads, browser screenshots, TTS
-audio, and processed images.  Mounted read-only so the remote terminal can
+**Cache directories** — gateway-cached uploads, browser screenshots, 
+and processed images.  Mounted read-only so the remote terminal can
 reference files the host side created (e.g. ``unzip`` an uploaded archive).
 
 Remote backends call :func:`get_credential_file_mounts`,
@@ -338,7 +338,7 @@ def iter_skills_files(
 
 
 # ---------------------------------------------------------------------------
-# Cache directory mounts (documents, images, audio, screenshots)
+# Cache directory mounts (documents, images, screenshots)
 # ---------------------------------------------------------------------------
 
 # The four cache subdirectories that should be mirrored into remote backends.
@@ -346,7 +346,6 @@ def iter_skills_files(
 _CACHE_DIRS: list[tuple[str, str]] = [
     ("cache/documents", "document_cache"),
     ("cache/images", "image_cache"),
-    ("cache/audio", "audio_cache"),
     ("cache/screenshots", "browser_screenshots"),
 ]
 

@@ -88,7 +88,7 @@ _DEFAULT_EXPORT_EXCLUDE_ROOT = frozenset({
     "errors.log",
     ".hermes_history",
     # Caches (regenerated on use)
-    "image_cache", "audio_cache", "document_cache",
+    "image_cache", "document_cache",
     "browser_screenshots", "checkpoints",
     "sandboxes",
     "logs",                 # gateway logs

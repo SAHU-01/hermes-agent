@@ -6,7 +6,7 @@ author: Hermes Agent + Teknium
 license: MIT
 metadata:
   hermes:
-    tags: [Coding-Agent, Claude, Anthropic, Code-Review, Refactoring, PTY, Automation]
+    tags: [Coding-Agent, Claude, Anthropic, Code-Review, Refactoring, Automation]
     related_skills: [codex, hermes-agent, opencode]
 ---
 
@@ -31,7 +31,7 @@ Hermes interacts with Claude Code in two fundamentally different ways. Choose ba
 
 ### Mode 1: Print Mode (`-p`) — Non-Interactive (PREFERRED for most tasks)
 
-Print mode runs a one-shot task, returns the result, and exits. No PTY needed. No interactive prompts. This is the cleanest integration path.
+Print mode runs a one-shot task, returns the result, and exits. No interactive prompts. This is the cleanest integration path.
 
 ```
 terminal(command="claude -p 'Add error handling to all API calls in src/' --allowedTools 'Read,Edit' --max-turns 10", workdir="/path/to/project", timeout=120)
@@ -46,7 +46,7 @@ terminal(command="claude -p 'Add error handling to all API calls in src/' --allo
 
 **Print mode skips ALL interactive dialogs** — no workspace trust prompt, no permission confirmations. This makes it ideal for automation.
 
-### Mode 2: Interactive PTY via tmux — Multi-Turn Sessions
+### Mode 2: Multi-Turn Sessions via tmux
 
 Interactive mode gives you a full conversational REPL where you can send follow-up prompts, use slash commands, and watch Claude work in real time. **Requires tmux orchestration.**
 
@@ -76,44 +76,6 @@ terminal(command="tmux send-keys -t claude-work '/exit' Enter")
 - Tasks requiring human-in-the-loop decisions
 - Exploratory coding sessions
 - When you need to use Claude's slash commands (`/compact`, `/review`, `/model`)
-
-## PTY Dialog Handling (CRITICAL for Interactive Mode)
-
-Claude Code presents up to two confirmation dialogs on first launch. You MUST handle these via tmux send-keys:
-
-### Dialog 1: Workspace Trust (first visit to a directory)
-```
-❯ 1. Yes, I trust this folder    ← DEFAULT (just press Enter)
-  2. No, exit
-```
-**Handling:** `tmux send-keys -t <session> Enter` — default selection is correct.
-
-### Dialog 2: Bypass Permissions Warning (only with --dangerously-skip-permissions)
-```
-❯ 1. No, exit                    ← DEFAULT (WRONG choice!)
-  2. Yes, I accept
-```
-**Handling:** Must navigate DOWN first, then Enter:
-```
-tmux send-keys -t <session> Down && sleep 0.3 && tmux send-keys -t <session> Enter
-```
-
-### Robust Dialog Handling Pattern
-```
-# Launch with permissions bypass
-terminal(command="tmux send-keys -t claude-work 'claude --dangerously-skip-permissions \"your task\"' Enter")
-
-# Handle trust dialog (Enter for default "Yes")
-terminal(command="sleep 4 && tmux send-keys -t claude-work Enter")
-
-# Handle permissions dialog (Down then Enter for "Yes, I accept")
-terminal(command="sleep 3 && tmux send-keys -t claude-work Down && sleep 0.3 && tmux send-keys -t claude-work Enter")
-
-# Now wait for Claude to work
-terminal(command="sleep 15 && tmux capture-pane -t claude-work -p -S -60")
-```
-
-**Note:** After the first trust acceptance for a directory, the trust dialog won't appear again. Only the permissions dialog recurs each time you use `--dangerously-skip-permissions`.
 
 ## CLI Subcommands
 
@@ -397,7 +359,6 @@ Use the `#` prefix in interactive mode to quickly add to memory: `# Always use 2
 | `/mcp` | Interactive UI to manage MCP servers |
 | `/add-dir` | Add additional working directories (useful for monorepos) |
 | `/usage` | Show plan limits and rate limit status |
-| `/voice` | Enable push-to-talk voice mode (20 languages; hold Space to record, release to send) |
 | `/release-notes` | Interactive picker for version release notes |
 
 ### Custom Slash Commands
@@ -717,7 +678,7 @@ Use `/context` in interactive mode to see a colored grid of context usage. Key t
 
 ## Pitfalls & Gotchas
 
-1. **Interactive mode REQUIRES tmux** — Claude Code is a full TUI app. Using `pty=true` alone in Hermes terminal works but tmux gives you `capture-pane` for monitoring and `send-keys` for input, which is essential for orchestration.
+1. **Interactive mode REQUIRES tmux** — Claude Code is a full TUI app. tmux gives you `capture-pane` for monitoring and `send-keys` for input, which is essential for orchestration.
 2. **`--dangerously-skip-permissions` dialog defaults to "No, exit"** — you must send Down then Enter to accept. Print mode (`-p`) skips this entirely.
 3. **`--max-budget-usd` minimum is ~$0.05** — system prompt cache creation alone costs this much. Setting lower will error immediately.
 4. **`--max-turns` is print-mode only** — ignored in interactive sessions.

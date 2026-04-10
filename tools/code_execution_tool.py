@@ -300,7 +300,7 @@ def _call(tool_name, args):
 # ---------------------------------------------------------------------------
 
 # Terminal parameters that must not be used from ephemeral sandbox scripts
-_TERMINAL_BLOCKED_PARAMS = {"background", "check_interval", "pty", "notify_on_complete"}
+_TERMINAL_BLOCKED_PARAMS = {"background", "check_interval", "notify_on_complete"}
 
 
 def _rpc_server_loop(
@@ -1256,7 +1256,7 @@ _TOOL_DOC_LINES = [
      "    Replaces old_string with new_string in the file."),
     ("terminal",
      "  terminal(command: str, timeout=None, workdir=None) -> dict\n"
-     "    Foreground only (no background/pty). Returns {\"output\": \"...\", \"exit_code\": N}"),
+     "    Foreground only (no background). Returns {\"output\": \"...\", \"exit_code\": N}"),
 ]
 
 
@@ -1296,7 +1296,7 @@ def build_execute_code_schema(enabled_sandbox_tools: set = None) -> dict:
         f"Available via `from hermes_tools import ...`:\n\n"
         f"{tool_lines}\n\n"
         "Limits: 5-minute timeout, 50KB stdout cap, max 50 tool calls per script. "
-        "terminal() is foreground-only (no background or pty). "
+        "terminal() is foreground-only (no background). "
         "If the session uses a cloud sandbox backend, treat it as resumable task state rather than a durable always-on machine.\n\n"
         "Print your final result to stdout. Use Python stdlib (json, re, math, csv, "
         "datetime, collections, etc.) for processing between tool calls.\n\n"

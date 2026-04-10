@@ -512,7 +512,7 @@ agent:
 #
 #   # Custom: CLI without browser or image gen:
 #   platform_toolsets:
-#     cli: [web, terminal, file, skills, todo, tts, cronjob]
+#     cli: [web, terminal, file, skills, todo, cronjob]
 #
 #   # Restrictive: Discord gets read-only tools only:
 #   platform_toolsets:
@@ -520,7 +520,7 @@ agent:
 #
 # If not set, defaults are:
 #   cli:           hermes-cli            (everything + cronjob management)
-#   telegram:      hermes-telegram       (terminal, file, web, vision, image, tts, browser, skills, todo, cronjob, messaging)
+#   telegram:      hermes-telegram       (terminal, file, web, vision, image, browser, skills, todo, cronjob, messaging)
 #   discord:       hermes-discord        (same as telegram)
 #   whatsapp:      hermes-whatsapp       (same as telegram)
 #   slack:         hermes-slack          (same as telegram)
@@ -557,13 +557,12 @@ platform_toolsets:
 #   skills_hub   - skill_hub (search/install/manage from online registries — user-driven only)
 #   moa          - mixture_of_agents  (requires OPENROUTER_API_KEY)
 #   todo         - todo (in-memory task planning, no deps)
-#   tts          - text_to_speech  (Edge TTS free, or ELEVENLABS/OPENAI/MINIMAX key)
 #   cronjob      - cronjob (create/list/update/pause/resume/run/remove scheduled tasks)
 #   rl           - rl_list_environments, rl_start_training, etc. (requires TINKER_API_KEY)
 #
 # PRESETS (curated bundles):
 #   hermes-cli       - All of the above except rl + send_message
-#   hermes-telegram  - terminal, file, web, vision, image_gen, tts, browser,
+#   hermes-telegram  - terminal, file, web, vision, image_gen, browser,
 #                      skills, todo, cronjob, send_message
 #   hermes-discord   - Same as hermes-telegram
 #   hermes-whatsapp  - Same as hermes-telegram
@@ -586,7 +585,6 @@ platform_toolsets:
 #   todo         - Task planning and tracking for multi-step work
 #   memory       - Persistent memory across sessions (personal notes + user profile)
 #   session_search - Search and recall past conversations (FTS5 + Gemini Flash summarization)
-#   tts          - Text-to-speech (Edge TTS free, ElevenLabs, OpenAI, MiniMax)
 #   cronjob      - Schedule and manage automated tasks (CLI-only)
 #   rl           - RL training tools (Tinker-Atropos)
 #
@@ -651,20 +649,6 @@ platform_toolsets:
 #       log_level: "info"       # audit verbosity
 
 # =============================================================================
-# Voice Transcription (Speech-to-Text)
-# =============================================================================
-# Automatically transcribe voice messages on messaging platforms.
-# Providers: local (free, faster-whisper) | groq (free tier) | openai (Whisper API) | mistral (Voxtral Transcribe)
-# Set the corresponding API key in .env: GROQ_API_KEY, OPENAI_API_KEY, or MISTRAL_API_KEY.
-stt:
-  enabled: true
-  # provider: "local"          # auto-detected if omitted
-  model: "whisper-1"  # whisper-1 (cheapest) | gpt-4o-mini-transcribe | gpt-4o-transcribe
-  # mistral:
-  #   model: "voxtral-mini-latest"  # voxtral-mini-latest | voxtral-mini-2602
-
-# =============================================================================
-# Response Pacing (Messaging Platforms)
 # =============================================================================
 # Add human-like delays between message chunks.
 # human_delay:

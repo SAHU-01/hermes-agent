@@ -27,7 +27,6 @@ Use [OpenCode](https://opencode.ai) as an autonomous coding worker orchestrated 
 - Auth configured: `opencode auth login` or set provider env vars (OPENROUTER_API_KEY, etc.)
 - Verify: `opencode auth list` should show at least one provider
 - Git repository for code tasks (recommended)
-- `pty=true` for interactive TUI sessions
 
 ## Binary Resolution (Important)
 
@@ -41,7 +40,7 @@ terminal(command="opencode --version")
 If needed, pin an explicit binary path:
 
 ```
-terminal(command="$HOME/.opencode/bin/opencode run '...'", workdir="~/project", pty=true)
+terminal(command="$HOME/.opencode/bin/opencode run '...'", workdir="~/project")
 ```
 
 ## One-Shot Tasks
@@ -75,7 +74,7 @@ terminal(command="opencode run 'Refactor auth module' --model openrouter/anthrop
 For iterative work requiring multiple exchanges, start the TUI in background:
 
 ```
-terminal(command="opencode", workdir="~/project", background=true, pty=true)
+terminal(command="opencode", workdir="~/project", background=true)
 # Returns session_id
 
 # Send a prompt
@@ -114,8 +113,8 @@ process(action="kill", session_id="<id>")
 After exiting, OpenCode prints a session ID. Resume with:
 
 ```
-terminal(command="opencode -c", workdir="~/project", background=true, pty=true)  # Continue last session
-terminal(command="opencode -s ses_abc123", workdir="~/project", background=true, pty=true)  # Specific session
+terminal(command="opencode -c", workdir="~/project", background=true)  # Continue last session
+terminal(command="opencode -s ses_abc123", workdir="~/project", background=true)  # Specific session
 ```
 
 ## Common Flags
@@ -139,8 +138,8 @@ terminal(command="opencode -s ses_abc123", workdir="~/project", background=true,
 1. Verify tool readiness:
    - `terminal(command="opencode --version")`
    - `terminal(command="opencode auth list")`
-2. For bounded tasks, use `opencode run '...'` (no pty needed).
-3. For iterative tasks, start `opencode` with `background=true, pty=true`.
+2. For bounded tasks, use `opencode run '...'`.
+3. For iterative tasks, start `opencode` with `background=true`.
 4. Monitor long tasks with `process(action="poll"|"log")`.
 5. If OpenCode asks for input, respond via `process(action="submit", ...)`.
 6. Exit with `process(action="write", data="\x03")` or `process(action="kill")`.
@@ -151,13 +150,13 @@ terminal(command="opencode -s ses_abc123", workdir="~/project", background=true,
 OpenCode has a built-in PR command:
 
 ```
-terminal(command="opencode pr 42", workdir="~/project", pty=true)
+terminal(command="opencode pr 42", workdir="~/project")
 ```
 
 Or review in a temporary clone for isolation:
 
 ```
-terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.git $REVIEW && cd $REVIEW && opencode run 'Review this PR vs main. Report bugs, security risks, test gaps, and style issues.' -f $(git diff origin/main --name-only | head -20 | tr '\n' ' ')", pty=true)
+terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.git $REVIEW && cd $REVIEW && opencode run 'Review this PR vs main. Report bugs, security risks, test gaps, and style issues.' -f $(git diff origin/main --name-only | head -20 | tr '\n' ' ')")
 ```
 
 ## Parallel Work Pattern
@@ -165,8 +164,8 @@ terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.
 Use separate workdirs/worktrees to avoid collisions:
 
 ```
-terminal(command="opencode run 'Fix issue #101 and commit'", workdir="/tmp/issue-101", background=true, pty=true)
-terminal(command="opencode run 'Add parser regression tests and commit'", workdir="/tmp/issue-102", background=true, pty=true)
+terminal(command="opencode run 'Fix issue #101 and commit'", workdir="/tmp/issue-101", background=true)
+terminal(command="opencode run 'Add parser regression tests and commit'", workdir="/tmp/issue-102", background=true)
 process(action="list")
 ```
 
@@ -187,7 +186,6 @@ terminal(command="opencode stats --days 7 --models anthropic/claude-sonnet-4")
 
 ## Pitfalls
 
-- Interactive `opencode` (TUI) sessions require `pty=true`. The `opencode run` command does NOT need pty.
 - `/exit` is NOT a valid command — it opens an agent selector. Use Ctrl+C to exit the TUI.
 - PATH mismatch can select the wrong OpenCode binary/model config.
 - If OpenCode appears stuck, inspect logs before killing:
@@ -210,7 +208,7 @@ Success criteria:
 
 ## Rules
 
-1. Prefer `opencode run` for one-shot automation — it's simpler and doesn't need pty.
+1. Prefer `opencode run` for one-shot automation — it's simpler.
 2. Use interactive background mode only when iteration is needed.
 3. Always scope OpenCode sessions to a single repo/workdir.
 4. For long tasks, provide progress updates from `process` logs.

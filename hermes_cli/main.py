@@ -710,7 +710,6 @@ def cmd_whatsapp(args):
             print("  │  Easiest: Install WhatsApp Business (free app)  │")
             print("  │  on your phone with a second number:            │")
             print("  │    • Dual-SIM: use your 2nd SIM slot            │")
-            print("  │    • Google Voice: free US number (voice.google) │")
             print("  │    • Prepaid SIM: $3-10, verify once            │")
             print("  │                                                 │")
             print("  │  WhatsApp Business runs alongside your personal │")
@@ -1297,12 +1296,6 @@ def _model_flow_nous(config, current_model="", args=None):
         changed_defaults = apply_nous_provider_defaults(config)
         save_config(config)
         print(f"Default model set to: {selected} (via Nous Portal)")
-        if "tts" in changed_defaults:
-            print("TTS provider set to: OpenAI TTS via your Nous subscription")
-        else:
-            current_tts = str(config.get("tts", {}).get("provider") or "edge")
-            if current_tts.lower() not in {"", "edge"}:
-                print(f"Keeping your existing TTS provider: {current_tts}")
         print()
         for line in get_nous_subscription_explainer_lines():
             print(line)

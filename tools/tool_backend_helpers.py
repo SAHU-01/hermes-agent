@@ -79,11 +79,3 @@ def resolve_modal_backend_state(
         "managed_mode_blocked": managed_mode_blocked,
         "selected_backend": selected_backend,
     }
-
-
-def resolve_openai_audio_api_key() -> str:
-    """Prefer the voice-tools key, but fall back to the normal OpenAI key."""
-    return (
-        os.getenv("VOICE_TOOLS_OPENAI_KEY", "")
-        or os.getenv("OPENAI_API_KEY", "")
-    ).strip()

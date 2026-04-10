@@ -2,16 +2,15 @@
 """
 Terminal Tool Module
 
-A terminal tool that executes commands in local, Docker, Modal, SSH, Singularity, and Daytona environments.
+A terminal tool that executes commands in local, Modal, SSH, Singularity, and Daytona environments.
 Supports local execution, containerized backends, and Modal cloud sandboxes, including managed gateway mode.
 
 Environment Selection (via TERMINAL_ENV environment variable):
 - "local": Execute directly on the host machine (default, fastest)
-- "docker": Execute in Docker containers (isolated, requires Docker)
 - "modal": Execute in Modal cloud sandboxes (direct Modal or managed gateway)
 
 Features:
-- Multiple execution backends (local, docker, modal)
+- Multiple execution backends (local, modal)
 - Background task support
 - VM/container lifecycle management
 - Automatic cleanup after inactivity
@@ -359,7 +358,7 @@ def _transform_sudo_command(command: str | None) -> tuple[str | None, str | None
           returned unchanged so it fails gracefully with
           "sudo: a password is required".
 
-    Callers that drive a subprocess directly (local, ssh, docker, singularity)
+    Callers that drive a subprocess directly (local, ssh, singularity)
     should prepend sudo_stdin to their stdin_data and pass the merged bytes to
     Popen's stdin pipe.
 
@@ -414,7 +413,6 @@ def _transform_sudo_command(command: str | None) -> tuple[str | None, str | None
 from tools.environments.local import LocalEnvironment as _LocalEnvironment
 from tools.environments.singularity import SingularityEnvironment as _SingularityEnvironment
 from tools.environments.ssh import SSHEnvironment as _SSHEnvironment
-from tools.environments.docker import DockerEnvironment as _DockerEnvironment
 from tools.environments.modal import ModalEnvironment as _ModalEnvironment
 from tools.environments.managed_modal import ManagedModalEnvironment as _ManagedModalEnvironment
 from tools.managed_tool_gateway import is_managed_tool_gateway_ready
@@ -436,10 +434,6 @@ Background: Set background=true to get a session_id. Two patterns:
   (2) Long-running tasks with notify_on_complete=true — you can keep working on other things and the system auto-notifies you when the task finishes. Great for test suites, builds, deployments, or anything that takes more than a minute.
 Use process(action="poll") for progress checks, process(action="wait") to block until done.
 Working directory: Use 'workdir' for per-command cwd.
-PTY mode: Set pty=true for interactive CLI tools (Codex, Claude Code, Python REPL).
-
-Do NOT use vim/nano/interactive tools without pty=true — they hang without a pseudo-terminal. Pipe git output to cat if it might page.
-Important: cloud sandboxes may be cleaned up, idled out, or recreated between turns. Persistent filesystem means files can resume later; it does NOT guarantee a continuously running machine or surviving background processes. Use terminal sandboxes for task work, not durable hosting.
 """
 
 # Global state for environment lifecycle management
@@ -452,7 +446,7 @@ _cleanup_thread = None
 _cleanup_running = False
 
 # Per-task environment overrides registry.
-# Allows environments (e.g., TerminalBench2Env) to specify a custom Docker/Modal
+# Allows environments (e.g., TerminalBench2Env) to specify a custom Modal
 # image for a specific task_id BEFORE the agent loop starts. When the terminal or
 # file tools create a new sandbox for that task_id, they check this registry first
 # and fall back to the TERMINAL_MODAL_IMAGE (etc.) env var if no override is set.
@@ -471,7 +465,6 @@ def register_task_env_overrides(task_id: str, overrides: Dict[str, Any]):
 
     Supported override keys:
         - modal_image: str -- Path to Dockerfile or Docker Hub image name
-        - docker_image: str -- Docker image name
         - cwd: str -- Working directory inside the sandbox
 
     Args:
@@ -513,8 +506,6 @@ def _get_env_config() -> Dict[str, Any]:
     default_image = "nikolaik/python-nodejs:python3.11-nodejs20"
     env_type = os.getenv("TERMINAL_ENV", "local")
     
-    mount_docker_cwd = os.getenv("TERMINAL_DOCKER_MOUNT_CWD_TO_WORKSPACE", "false").lower() in ("true", "1", "yes")
-
     # Default cwd: local uses the host's current directory, everything
     # else starts in the user's home (~ resolves to whatever account
     # is running inside the container/remote).
@@ -526,22 +517,9 @@ def _get_env_config() -> Dict[str, Any]:
         default_cwd = "/root"
 
     # Read TERMINAL_CWD but sanity-check it for container backends.
-    # If Docker cwd passthrough is explicitly enabled, remap the host path to
-    # /workspace and track the original host path separately. Otherwise keep the
-    # normal sandbox behavior and discard host paths.
     cwd = os.getenv("TERMINAL_CWD", default_cwd)
-    host_cwd = None
     host_prefixes = ("/Users/", "/home/", "C:\\", "C:/")
-    if env_type == "docker" and mount_docker_cwd:
-        docker_cwd_source = os.getenv("TERMINAL_CWD") or os.getcwd()
-        candidate = os.path.abspath(os.path.expanduser(docker_cwd_source))
-        if (
-            any(candidate.startswith(p) for p in host_prefixes)
-            or (os.path.isabs(candidate) and os.path.isdir(candidate) and not candidate.startswith(("/workspace", "/root")))
-        ):
-            host_cwd = candidate
-            cwd = "/workspace"
-    elif env_type in ("modal", "docker", "singularity", "daytona") and cwd:
+    if env_type in ("modal", "singularity", "daytona") and cwd:
         # Host paths and relative paths that won't work inside containers
         is_host_path = any(cwd.startswith(p) for p in host_prefixes)
         is_relative = not os.path.isabs(cwd)  # e.g. "." or "src/"
@@ -554,14 +532,10 @@ def _get_env_config() -> Dict[str, Any]:
     return {
         "env_type": env_type,
         "modal_mode": coerce_modal_mode(os.getenv("TERMINAL_MODAL_MODE", "auto")),
-        "docker_image": os.getenv("TERMINAL_DOCKER_IMAGE", default_image),
-        "docker_forward_env": _parse_env_var("TERMINAL_DOCKER_FORWARD_ENV", "[]", json.loads, "valid JSON"),
         "singularity_image": os.getenv("TERMINAL_SINGULARITY_IMAGE", f"docker://{default_image}"),
         "modal_image": os.getenv("TERMINAL_MODAL_IMAGE", default_image),
         "daytona_image": os.getenv("TERMINAL_DAYTONA_IMAGE", default_image),
         "cwd": cwd,
-        "host_cwd": host_cwd,
-        "docker_mount_cwd_to_workspace": mount_docker_cwd,
         "timeout": _parse_env_var("TERMINAL_TIMEOUT", "180"),
         "lifetime_seconds": _parse_env_var("TERMINAL_LIFETIME_SECONDS", "300"),
         # SSH-specific config
@@ -577,12 +551,11 @@ def _get_env_config() -> Dict[str, Any]:
             os.getenv("TERMINAL_PERSISTENT_SHELL", "true"),
         ).lower() in ("true", "1", "yes"),
         "local_persistent": os.getenv("TERMINAL_LOCAL_PERSISTENT", "false").lower() in ("true", "1", "yes"),
-        # Container resource config (applies to docker, singularity, modal, daytona -- ignored for local/ssh)
+        # Container resource config (applies to singularity, modal, daytona -- ignored for local/ssh)
         "container_cpu": _parse_env_var("TERMINAL_CONTAINER_CPU", "1", float, "number"),
         "container_memory": _parse_env_var("TERMINAL_CONTAINER_MEMORY", "5120"),     # MB (default 5GB)
         "container_disk": _parse_env_var("TERMINAL_CONTAINER_DISK", "51200"),        # MB (default 50GB)
         "container_persistent": os.getenv("TERMINAL_CONTAINER_PERSISTENT", "true").lower() in ("true", "1", "yes"),
-        "docker_volumes": _parse_env_var("TERMINAL_DOCKER_VOLUMES", "[]", json.loads, "valid JSON"),
     }
 
 
@@ -598,20 +571,18 @@ def _get_modal_backend_state(modal_mode: object | None) -> Dict[str, Any]:
 def _create_environment(env_type: str, image: str, cwd: str, timeout: int,
                         ssh_config: dict = None, container_config: dict = None,
                         local_config: dict = None,
-                        task_id: str = "default",
-                        host_cwd: str = None):
+                        task_id: str = "default"):
     """
     Create an execution environment for sandboxed command execution.
     
     Args:
-        env_type: One of "local", "docker", "singularity", "modal", "daytona", "ssh"
-        image: Docker/Singularity/Modal image name (ignored for local/ssh)
+        env_type: One of "local", "singularity", "modal", "daytona", "ssh"
+        image: Singularity/Modal image name (ignored for local/ssh)
         cwd: Working directory
         timeout: Default command timeout
         ssh_config: SSH connection config (for env_type="ssh")
         container_config: Resource config for container backends (cpu, memory, disk, persistent)
         task_id: Task identifier for environment reuse and snapshot keying
-        host_cwd: Optional host working directory to bind into Docker when explicitly enabled
         
     Returns:
         Environment instance with execute() method
@@ -621,24 +592,9 @@ def _create_environment(env_type: str, image: str, cwd: str, timeout: int,
     memory = cc.get("container_memory", 5120)
     disk = cc.get("container_disk", 51200)
     persistent = cc.get("container_persistent", True)
-    volumes = cc.get("docker_volumes", [])
-    docker_forward_env = cc.get("docker_forward_env", [])
-    docker_env = cc.get("docker_env", {})
 
     if env_type == "local":
         return _LocalEnvironment(cwd=cwd, timeout=timeout)
-    
-    elif env_type == "docker":
-        return _DockerEnvironment(
-            image=image, cwd=cwd, timeout=timeout,
-            cpu=cpu, memory=memory, disk=disk,
-            persistent_filesystem=persistent, task_id=task_id,
-            volumes=volumes,
-            host_cwd=host_cwd,
-            auto_mount_cwd=cc.get("docker_mount_cwd_to_workspace", False),
-            forward_env=docker_forward_env,
-            env=docker_env,
-        )
     
     elif env_type == "singularity":
         return _SingularityEnvironment(
@@ -721,7 +677,7 @@ def _create_environment(env_type: str, image: str, cwd: str, timeout: int,
         )
 
     else:
-        raise ValueError(f"Unknown environment type: {env_type}. Use 'local', 'docker', 'singularity', 'modal', 'daytona', or 'ssh'")
+        raise ValueError(f"Unknown environment type: {env_type}. Use 'local', 'singularity', 'modal', 'daytona', or 'ssh'")
 
 
 def _cleanup_inactive_envs(lifetime_seconds: int = 300):
@@ -738,9 +694,9 @@ def _cleanup_inactive_envs(lifetime_seconds: int = 300):
     except ImportError:
         pass
 
-    # Phase 1: collect stale entries and remove them from tracking dicts while
-    # holding the lock.  Do NOT call env.cleanup() inside the lock -- Modal and
-    # Docker teardown can block for 10-15s, which would stall every concurrent
+    # Collect stale entries and remove them from tracking dicts while
+    # holding the lock.  Do NOT call env.cleanup() inside the lock -- Modal
+    # teardown can block for 10-15s, which would stall every concurrent
     # terminal/file tool call waiting on _env_lock.
     envs_to_stop = []  # list of (task_id, env) pairs
 
@@ -758,7 +714,7 @@ def _cleanup_inactive_envs(lifetime_seconds: int = 300):
                 _creation_locks.pop(task_id, None)
 
     # Phase 2: stop the actual sandboxes OUTSIDE the lock so other tool calls
-    # are not blocked while Modal/Docker sandboxes shut down.
+    # are not blocked while Modal sandboxes shut down.
     for task_id, env in envs_to_stop:
         # Invalidate stale file_ops cache entry (Bug fix: prevents
         # ShellFileOperations from referencing a dead sandbox)
@@ -834,11 +790,10 @@ def is_persistent_env(task_id: str) -> bool:
     cross-turn persistence (``persistent_filesystem=True``).
 
     Used by the agent loop to skip per-turn teardown for backends whose whole
-    point is to survive between turns (docker with ``container_persistent``,
-    daytona, modal, etc.). Non-persistent backends (e.g. Morph) still get torn
-    down at end-of-turn to prevent leakage. The idle reaper
-    (``_cleanup_inactive_envs``) handles persistent envs once they exceed
-    ``terminal.lifetime_seconds``.
+    point is to survive between turns (modal, etc.). Non-persistent backends
+    (e.g. Morph) still get torn down at end-of-turn to prevent leakage.
+    The idle reaper (``_cleanup_inactive_envs``) handles persistent envs once
+    they exceed ``terminal.lifetime_seconds``.
     """
     env = get_active_env(task_id)
     if env is None:
@@ -1031,7 +986,6 @@ def terminal_tool(
     force: bool = False,
     workdir: Optional[str] = None,
     check_interval: Optional[int] = None,
-    pty: bool = False,
     notify_on_complete: bool = False,
 ) -> str:
     """
@@ -1045,7 +999,6 @@ def terminal_tool(
         force: If True, skip dangerous command check (use after user confirms)
         workdir: Working directory for this command (optional, uses session cwd if not set)
         check_interval: Seconds between auto-checks for background processes (gateway only, min 30)
-        pty: If True, use pseudo-terminal for interactive CLI tools (local backend only)
         notify_on_complete: If True and background=True, auto-notify the agent when the process exits
 
     Returns:
@@ -1089,9 +1042,7 @@ def terminal_tool(
         overrides = _task_env_overrides.get(effective_task_id, {})
         
         # Select image based on env type, with per-task override support
-        if env_type == "docker":
-            image = overrides.get("docker_image") or config["docker_image"]
-        elif env_type == "singularity":
+        if env_type == "singularity":
             image = overrides.get("singularity_image") or config["singularity_image"]
         elif env_type == "modal":
             image = overrides.get("modal_image") or config["modal_image"]
@@ -1149,17 +1100,15 @@ def terminal_tool(
                                 "persistent": config.get("ssh_persistent", False),
                             }
 
-                        container_config = None
-                        if env_type in ("docker", "singularity", "modal", "daytona"):
-                            container_config = {
-                                "container_cpu": config.get("container_cpu", 1),
-                                "container_memory": config.get("container_memory", 5120),
-                                "container_disk": config.get("container_disk", 51200),
-                                "container_persistent": config.get("container_persistent", True),
-                                "modal_mode": config.get("modal_mode", "auto"),
-                                "docker_volumes": config.get("docker_volumes", []),
-                                "docker_mount_cwd_to_workspace": config.get("docker_mount_cwd_to_workspace", False),
-                            }
+                    container_config = None
+                    if env_type in ("singularity", "modal", "daytona"):
+                        container_config = {
+                            "container_cpu": config.get("container_cpu", 1),
+                            "container_memory": config.get("container_memory", 5120),
+                            "container_disk": config.get("container_disk", 51200),
+                            "container_persistent": config.get("container_persistent", True),
+                            "modal_mode": config.get("modal_mode", "auto"),
+                        }
 
                         local_config = None
                         if env_type == "local":
@@ -1260,7 +1209,6 @@ def terminal_tool(
                         task_id=effective_task_id,
                         session_key=session_key,
                         env_vars=env.env if hasattr(env, 'env') else None,
-                        use_pty=pty,
                     )
                 else:
                     proc_session = process_registry.spawn_via_env(
@@ -1455,15 +1403,6 @@ def check_terminal_requirements() -> bool:
         if env_type == "local":
             return True
 
-        elif env_type == "docker":
-            from tools.environments.docker import find_docker
-            docker = find_docker()
-            if not docker:
-                logger.error("Docker executable not found in PATH or common install locations")
-                return False
-            result = subprocess.run([docker, "version"], capture_output=True, timeout=5)
-            return result.returncode == 0
-
         elif env_type == "singularity":
             executable = shutil.which("apptainer") or shutil.which("singularity")
             if executable:
@@ -1541,7 +1480,7 @@ def check_terminal_requirements() -> bool:
 
         else:
             logger.error(
-                "Unknown TERMINAL_ENV '%s'. Use one of: local, docker, singularity, "
+                "Unknown TERMINAL_ENV '%s'. Use one of: local, singularity, "
                 "modal, daytona, ssh.",
                 env_type,
             )
@@ -1559,7 +1498,6 @@ if __name__ == "__main__":
     config = _get_env_config()
     print("\nCurrent Configuration:")
     print(f"  Environment type: {config['env_type']}")
-    print(f"  Docker image: {config['docker_image']}")
     print(f"  Modal image: {config['modal_image']}")
     print(f"  Working directory: {config['cwd']}")
     print(f"  Default timeout: {config['timeout']}s")
@@ -1582,8 +1520,7 @@ if __name__ == "__main__":
 
     print("\nEnvironment Variables:")
     default_img = "nikolaik/python-nodejs:python3.11-nodejs20"
-    print(f"  TERMINAL_ENV: {os.getenv('TERMINAL_ENV', 'local')} (local/docker/singularity/modal/daytona/ssh)")
-    print(f"  TERMINAL_DOCKER_IMAGE: {os.getenv('TERMINAL_DOCKER_IMAGE', default_img)}")
+    print(f"  TERMINAL_ENV: {os.getenv('TERMINAL_ENV', 'local')} (local/singularity/modal/daytona/ssh)")
     print(f"  TERMINAL_SINGULARITY_IMAGE: {os.getenv('TERMINAL_SINGULARITY_IMAGE', f'docker://{default_img}')}")
     print(f"  TERMINAL_MODAL_IMAGE: {os.getenv('TERMINAL_MODAL_IMAGE', default_img)}")
     print(f"  TERMINAL_DAYTONA_IMAGE: {os.getenv('TERMINAL_DAYTONA_IMAGE', default_img)}")
@@ -1628,11 +1565,6 @@ TERMINAL_SCHEMA = {
                 "description": "Seconds between automatic status checks for background processes (gateway/messaging only, minimum 30). When set, I'll proactively report progress.",
                 "minimum": 30
             },
-            "pty": {
-                "type": "boolean",
-                "description": "Run in pseudo-terminal (PTY) mode for interactive CLI tools like Codex, Claude Code, or Python REPL. Only works with local and SSH backends. Default: false.",
-                "default": False
-            },
             "notify_on_complete": {
                 "type": "boolean",
                 "description": "When true (and background=true), you'll be automatically notified when the process finishes — no polling needed. Use this for tasks that take a while (tests, builds, deployments) so you can keep working on other things in the meantime.",
@@ -1652,7 +1584,6 @@ def _handle_terminal(args, **kw):
         task_id=kw.get("task_id"),
         workdir=args.get("workdir"),
         check_interval=args.get("check_interval"),
-        pty=args.get("pty", False),
         notify_on_complete=args.get("notify_on_complete", False),
     )
 

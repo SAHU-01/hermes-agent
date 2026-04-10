@@ -85,7 +85,6 @@ class ProcessSession:
     notify_on_complete: bool = False             # Queue agent notification on exit
     _lock: threading.Lock = field(default_factory=threading.Lock)
     _reader_thread: Optional[threading.Thread] = field(default=None, repr=False)
-    _pty: Any = field(default=None, repr=False)  # ptyprocess handle (when use_pty=True)
 
 
 class ProcessRegistry:
@@ -179,17 +178,11 @@ class ProcessRegistry:
         task_id: str = "",
         session_key: str = "",
         env_vars: dict = None,
-        use_pty: bool = False,
     ) -> ProcessSession:
         """
         Spawn a background process locally.
 
         Only for TERMINAL_ENV=local. Other backends use spawn_via_env().
-
-        Args:
-            use_pty: If True, use a pseudo-terminal via ptyprocess for interactive
-                     CLI tools (Codex, Claude Code, Python REPL). Falls back to
-                     subprocess.Popen if ptyprocess is not installed.
         """
         session = ProcessSession(
             id=f"proc_{uuid.uuid4().hex[:12]}",
@@ -200,49 +193,7 @@ class ProcessRegistry:
             started_at=time.time(),
         )
 
-        if use_pty:
-            # Try PTY mode for interactive CLI tools
-            try:
-                if _IS_WINDOWS:
-                    from winpty import PtyProcess as _PtyProcessCls
-                else:
-                    from ptyprocess import PtyProcess as _PtyProcessCls
-                user_shell = _find_shell()
-                pty_env = _sanitize_subprocess_env(os.environ, env_vars)
-                pty_env["PYTHONUNBUFFERED"] = "1"
-                pty_proc = _PtyProcessCls.spawn(
-                    [user_shell, "-lic", command],
-                    cwd=session.cwd,
-                    env=pty_env,
-                    dimensions=(30, 120),
-                )
-                session.pid = pty_proc.pid
-                # Store the pty handle on the session for read/write
-                session._pty = pty_proc
-
-                # PTY reader thread
-                reader = threading.Thread(
-                    target=self._pty_reader_loop,
-                    args=(session,),
-                    daemon=True,
-                    name=f"proc-pty-reader-{session.id}",
-                )
-                session._reader_thread = reader
-                reader.start()
-
-                with self._lock:
-                    self._prune_if_needed()
-                    self._running[session.id] = session
-
-                self._write_checkpoint()
-                return session
-
-            except ImportError:
-                logger.warning("ptyprocess not installed, falling back to pipe mode")
-            except Exception as e:
-                logger.warning("PTY spawn failed (%s), falling back to pipe mode", e)
-
-        # Standard Popen path (non-PTY or PTY fallback)
+        # Standard Popen path
         # Use the user's login shell for consistency with LocalEnvironment --
         # ensures rc files are sourced and user tools are available.
         user_shell = _find_shell()
@@ -429,36 +380,6 @@ class ProcessRegistry:
                 self._move_to_finished(session)
                 return
 
-    def _pty_reader_loop(self, session: ProcessSession):
-        """Background thread: read output from a PTY process."""
-        pty = session._pty
-        try:
-            while pty.isalive():
-                try:
-                    chunk = pty.read(4096)
-                    if chunk:
-                        # ptyprocess returns bytes
-                        text = chunk if isinstance(chunk, str) else chunk.decode("utf-8", errors="replace")
-                        with session._lock:
-                            session.output_buffer += text
-                            if len(session.output_buffer) > session.max_output_chars:
-                                session.output_buffer = session.output_buffer[-session.max_output_chars:]
-                except EOFError:
-                    break
-                except Exception:
-                    break
-        except Exception as e:
-            logger.debug("PTY stdout reader ended: %s", e)
-
-        # Process exited
-        try:
-            pty.wait()
-        except Exception as e:
-            logger.debug("PTY wait timed out or failed: %s", e)
-        session.exited = True
-        session.exit_code = pty.exitstatus if hasattr(pty, 'exitstatus') else -1
-        self._move_to_finished(session)
-
     def _move_to_finished(self, session: ProcessSession):
         """Move a session from running to finished."""
         with self._lock:
@@ -621,16 +542,9 @@ class ProcessRegistry:
                 "exit_code": session.exit_code,
             }
 
-        # Kill via PTY, Popen (local), or env execute (non-local)
+        # Kill via Popen (local), or env execute (non-local)
         try:
-            if session._pty:
-                # PTY process -- terminate via ptyprocess
-                try:
-                    session._pty.terminate(force=True)
-                except Exception:
-                    if session.pid:
-                        os.kill(session.pid, signal.SIGTERM)
-            elif session.process:
+            if session.process:
                 # Local process -- kill the process group
                 try:
                     if _IS_WINDOWS:
@@ -676,15 +590,6 @@ class ProcessRegistry:
             return {"status": "not_found", "error": f"No process with ID {session_id}"}
         if session.exited:
             return {"status": "already_exited", "error": "Process has already finished"}
-
-        # PTY mode -- write through pty handle (expects bytes)
-        if hasattr(session, '_pty') and session._pty:
-            try:
-                pty_data = data.encode("utf-8") if isinstance(data, str) else data
-                session._pty.write(pty_data)
-                return {"status": "ok", "bytes_written": len(data)}
-            except Exception as e:
-                return {"status": "error", "error": str(e)}
 
         # Popen mode -- write through stdin pipe
         if not session.process or not session.process.stdin:
